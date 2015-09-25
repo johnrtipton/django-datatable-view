@@ -13,8 +13,8 @@ except ImportError:
 
 from django.views.generic.list import ListView, MultipleObjectMixin
 from django.http import HttpResponse, HttpResponseBadRequest
-from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Model, Manager, Q
+from django.core.exceptions import ObjectDoesNotExist, FieldDoesNotExist
+from django.db.models import Model, Manager, Q, ForeignKey, OneToOneRel
 from django.utils.encoding import force_text
 from django.utils.text import smart_split
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -216,6 +216,17 @@ class DatatableMixin(MultipleObjectMixin):
                                 field_queries = [{component_name: float(term)}]
                             except ValueError:
                                 pass
+                        # PATCH: John R. Tipton, If the field is a foreign key, try to search the
+                        # name field.
+                        elif isinstance(field, ForeignKey):
+                            try:
+                                field.rel.to._meta.get_field('name')
+                                field_queries = [{component_name + '__name__icontains': term}]
+                            except FieldDoesNotExist:
+                                pass
+                        # PATCH: John R. Tipton, If a OneToOne field then ignore it.
+                        elif isinstance(field, OneToOneRel):
+                            pass
                         elif isinstance(field, tuple(FIELD_TYPES['ignored'])):
                             pass
                         else:
